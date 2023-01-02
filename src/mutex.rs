@@ -87,6 +87,7 @@ impl SharedMutex {
         Ok(Self { mutex, owner_pid })
     }
 
+    // TODO: document errors
     /// Locks mutex.
     ///
     /// This function will block until mutex is locked.
@@ -102,8 +103,13 @@ impl SharedMutex {
         check_libc_err(unsafe { pthread_mutex_unlock(self.mutex.get_mut()) })?;
         Ok(())
     }
+
+    pub(crate) fn get_mut(&mut self) -> *mut pthread_mutex_t {
+        self.mutex.get_mut()
+    }
 }
 
+// TODO: document drop behaviour
 impl Drop for SharedMutex {
     fn drop(&mut self) {
         if getpid() == self.owner_pid {
