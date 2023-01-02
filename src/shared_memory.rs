@@ -1,11 +1,56 @@
 use libc::{c_void, mmap, munmap, MAP_ANONYMOUS, MAP_FAILED, MAP_SHARED, PROT_READ, PROT_WRITE};
 use std::{mem::size_of, ptr::null_mut};
 
+/// An object that can be shared between processes.
+///
+/// After spawning child process (using `fork()`, `clone()`, etc.) updates to this object will be seen by both processes.
+/// This is achieved by allocating memory using mmap with `MAP_SHARED` flag.
+///
+/// For more details see [man page](https://man7.org/linux/man-pages/man2/mmap.2.html).
+///
+/// # Example
+/// ```rust
+/// # use std::error::Error;
+/// # use std::thread::sleep;
+/// # use std::time::Duration;
+/// #
+/// # use libc::fork;
+/// #
+/// # use process_sync::private::check_libc_err;
+/// # use process_sync::SharedMemoryObject;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// #
+/// let mut shared = SharedMemoryObject::new(123)?;
+///
+/// let pid = unsafe { fork() };
+/// assert!(pid >= 0);
+///
+/// if pid == 0 {
+///     assert_eq!(*shared.get(), 123);
+///     *shared.get_mut() = 456;
+///     sleep(Duration::from_millis(40));
+///     assert_eq!(*shared.get(), 789);
+/// } else {
+///     sleep(Duration::from_millis(20));
+///     assert_eq!(*shared.get(), 456);
+///     *shared.get_mut() = 789;
+/// }
+/// #
+/// #     Ok(())
+/// # }
+/// ```
 pub struct SharedMemoryObject<T> {
     ptr: *mut T,
 }
 
 impl<T: Sync + Send> SharedMemoryObject<T> {
+    /// Allocates shared memory and moves `obj` there.
+    ///
+    /// # Errors
+    /// If allocation fails returns error from [`last_os_error`].
+    ///
+    /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error
     pub fn new(obj: T) -> std::io::Result<Self> {
         let addr = allocate_shared_memory(size_of::<T>())?;
 
@@ -15,11 +60,20 @@ impl<T: Sync + Send> SharedMemoryObject<T> {
         Ok(Self { ptr: addr })
     }
 
+    /// Returns reference to underlying object.
+    ///
+    /// # Safety
+    /// See [`get_mut`](#method.get_mut).
     pub fn get(&self) -> &T {
         unsafe { &*self.ptr }
     }
 
-    pub fn get_mut(&self) -> &mut T {
+    /// Returns mutable reference to underlying object.
+    ///
+    /// # Safety
+    /// This function (and [`get`](#method.get)) is always safe to call, but access to data under returned reference
+    /// must be somehow synchronized with another processes to avoid data race.
+    pub fn get_mut(&mut self) -> &mut T {
         unsafe { &mut *self.ptr }
     }
 }
@@ -44,7 +98,6 @@ fn allocate_shared_memory(len: usize) -> std::io::Result<*mut c_void> {
         )
     };
     if addr == MAP_FAILED {
-        println!("wtf {:?}", std::io::Error::last_os_error());
         return Err(std::io::Error::last_os_error());
     }
     Ok(addr)
@@ -57,27 +110,3 @@ fn free_shared_memory(addr: *mut c_void, len: usize) -> std::io::Result<()> {
     }
     Ok(())
 }
-
-/*
-#include <sys/mman.h>
-
-    ~SharedMemoryObject() {
-        if (free_shared_memory(ptr_, sizeof(T)) != 0) {
-            die(format("Cannot free shared memory at %p: %m", ptr_));
-        }
-    }
-
-    T *get() {
-        return ptr_;
-    }
-
-    T *operator->() {
-        return ptr_;
-    }
-
-private:
-    T *ptr_;
-};
-
-#endif //LIBSBOX_SHARED_MEMORY_OBJECT_H
-*/

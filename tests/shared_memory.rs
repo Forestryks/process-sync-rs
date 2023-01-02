@@ -9,7 +9,7 @@ use common::{sleep, TestOutput};
 fn main() {
     let mut test_output = TestOutput::new(&["123", "123", "456", "789"]);
 
-    let value = SharedMemoryObject::new(123).expect("cannot create SharedMemoryObject");
+    let mut value = SharedMemoryObject::new(123).expect("cannot create SharedMemoryObject");
 
     let pid = check_libc_err(unsafe { fork() }).expect("fork failed");
     if pid == 0 {

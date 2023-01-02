@@ -10,25 +10,94 @@ use crate::{
     util::{check_libc_err, getpid},
 };
 
+/// Simple mutex that can be shared between processes.
+///
+/// This mutex is **NOT** recursive, so it will deadlock on relock.
+///
+/// Dropping mutex in creating process while mutex being locked or waited is undefined behaviour.
+/// It is recommended to drop this mutex in creating process only after no other process has access to it.
+///
+/// For more information see [`pthread_mutex_init`](https://man7.org/linux/man-pages/man3/pthread_mutex_destroy.3p.html), [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html) and [`SharedMemoryObject`].
+///
+/// # Example
+/// ```rust
+/// # use std::error::Error;
+/// # use std::thread::sleep;
+/// # use std::time::Duration;
+/// #
+/// # use libc::fork;
+/// #
+/// # use process_sync::private::check_libc_err;
+/// # use process_sync::SharedMutex;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// #
+/// let mut mutex = SharedMutex::new()?;
+///
+/// let pid = unsafe { fork() };
+/// assert!(pid >= 0);
+///
+/// if pid == 0 {
+///     println!("child lock()");
+///     mutex.lock()?;
+///     println!("child locked");
+///     sleep(Duration::from_millis(40));
+///     println!("child unlock()");
+///     mutex.unlock()?;
+/// } else {
+///     sleep(Duration::from_millis(20));
+///     println!("parent lock()");
+///     mutex.lock()?;
+///     println!("parent locked");
+///     sleep(Duration::from_millis(20));
+///     println!("parent unlock()");
+///     mutex.unlock()?;
+/// }
+/// #
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// Output:
+/// ```txt
+/// child lock()
+/// child locked
+/// parent lock()
+/// child unlock()
+/// parent locked
+/// parent unlock()
+/// ```
 pub struct SharedMutex {
     mutex: SharedMemoryObject<pthread_mutex_t>,
     owner_pid: pid_t,
 }
 
 impl SharedMutex {
+    /// Creates new [`SharedMutex`]
+    ///
+    /// # Errors
+    /// If allocation or mutex initialization fails returns error from [`last_os_error`].
+    ///
+    /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error.
     pub fn new() -> std::io::Result<Self> {
-        let mutex = SharedMemoryObject::new(PTHREAD_MUTEX_INITIALIZER)?;
+        let mut mutex = SharedMemoryObject::new(PTHREAD_MUTEX_INITIALIZER)?;
         initialize_mutex(mutex.get_mut())?;
 
         let owner_pid = getpid();
         Ok(Self { mutex, owner_pid })
     }
 
+    /// Locks mutex.
+    ///
+    /// This function will block until mutex is locked.
     pub fn lock(&mut self) -> std::io::Result<()> {
         check_libc_err(unsafe { pthread_mutex_lock(self.mutex.get_mut()) })?;
         Ok(())
     }
 
+    /// Unlocks mutex.
+    ///
+    /// This function must be called from the same process that called [`lock`](#method.lock) previously.
     pub fn unlock(&mut self) -> std::io::Result<()> {
         check_libc_err(unsafe { pthread_mutex_unlock(self.mutex.get_mut()) })?;
         Ok(())
