@@ -1,4 +1,5 @@
-# Process Sync [![Crates.io](https://img.shields.io/crates/v/process-sync.svg)](https://crates.io/crates/process-sync) [![Documentation](https://docs.rs/process-sync/badge.svg)](https://docs.rs/process-sync/)
+# Process Sync
+[![Crates.io](https://img.shields.io/crates/v/process-sync.svg)](https://crates.io/crates/process-sync) [![Documentation](https://docs.rs/process-sync/badge.svg)](https://docs.rs/process-sync/)
 
 Adds synchronization primitives that can be shared between multiple processes
 
