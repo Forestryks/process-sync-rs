@@ -105,7 +105,7 @@ impl SharedMutex {
     /// This function must be called from the same process that called [`lock`](#method.lock) previously.
     ///
     /// # Errors
-    /// If any pthread call fails, returns error from [`last_os_error`]. For possible errors see [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html).
+    /// If any pthread call fails, returns error from [`last_os_error`]. For possible errors see [`pthread_mutex_unlock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html).
     ///
     /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error
     pub fn unlock(&mut self) -> std::io::Result<()> {
