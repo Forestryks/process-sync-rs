@@ -2,7 +2,6 @@ use libc::pid_t;
 
 #[doc(hidden)]
 pub fn check_libc_err<T: Default + Ord>(ret: T) -> std::io::Result<T> {
-    // TODO: check if needed != or <
     if ret < T::default() {
         return Err(std::io::Error::last_os_error());
     }
