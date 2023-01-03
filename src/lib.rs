@@ -1,7 +1,6 @@
 //! Synchronization primitives for using in multiprocess environments.
 //!
 //! Implementation is based on `pthread` bindings.
-//! TODO: write about how they actually work
 
 #![warn(missing_docs)]
 // #![deny(missing_doc_code_examples)]

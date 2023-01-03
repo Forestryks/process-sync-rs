@@ -18,8 +18,9 @@ impl TestOutput {
 
     pub fn write_line(&mut self, line: impl AsRef<str>) {
         let line = line.as_ref();
+        println!("{}", line);
+        let line = format!("{}\n", line);
         self.file.write_all(line.as_bytes()).unwrap();
-        self.file.write_all(&[b'\n']).unwrap();
         self.file.flush().unwrap();
     }
 

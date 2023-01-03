@@ -14,7 +14,7 @@ use crate::{
 ///
 /// This mutex is **NOT** recursive, so it will deadlock on relock.
 ///
-/// Dropping mutex in creating process while mutex being locked or waited is undefined behaviour.
+/// Dropping mutex in creating process while mutex being locked or waited will cause undefined behaviour.
 /// It is recommended to drop this mutex in creating process only after no other process has access to it.
 ///
 /// For more information see [`pthread_mutex_init`](https://man7.org/linux/man-pages/man3/pthread_mutex_destroy.3p.html), [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html) and [`SharedMemoryObject`].
@@ -76,7 +76,7 @@ impl SharedMutex {
     /// Creates new [`SharedMutex`]
     ///
     /// # Errors
-    /// If allocation or mutex initialization fails returns error from [`last_os_error`].
+    /// If allocation or initialization fails returns error from [`last_os_error`].
     ///
     /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error.
     pub fn new() -> std::io::Result<Self> {
@@ -87,10 +87,14 @@ impl SharedMutex {
         Ok(Self { mutex, owner_pid })
     }
 
-    // TODO: document errors
     /// Locks mutex.
     ///
     /// This function will block until mutex is locked.
+    ///
+    /// # Errors
+    /// If any pthread call fails, returns error from [`last_os_error`]. For possible errors see [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html).
+    ///
+    /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error
     pub fn lock(&mut self) -> std::io::Result<()> {
         check_libc_err(unsafe { pthread_mutex_lock(self.mutex.get_mut()) })?;
         Ok(())
@@ -99,6 +103,11 @@ impl SharedMutex {
     /// Unlocks mutex.
     ///
     /// This function must be called from the same process that called [`lock`](#method.lock) previously.
+    ///
+    /// # Errors
+    /// If any pthread call fails, returns error from [`last_os_error`]. For possible errors see [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html).
+    ///
+    /// [`last_os_error`]: https://doc.rust-lang.org/stable/std/io/struct.Error.html#method.last_os_error
     pub fn unlock(&mut self) -> std::io::Result<()> {
         check_libc_err(unsafe { pthread_mutex_unlock(self.mutex.get_mut()) })?;
         Ok(())

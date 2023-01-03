@@ -14,6 +14,10 @@ edition = "2021"
 libc = "0.2.139"
 
 [[test]]
+name = "condvar"
+harness = false
+
+[[test]]
 name = "mutex"
 harness = false
 
